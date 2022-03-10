@@ -22,7 +22,12 @@ knit: (
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = F)
-setwd("/projects/SUMMIT/WP1.2/Literature_Cohorts/data_analysis/code/miles_publication/data_analysis/")
+
+
+#ADJUST THIS PATH!
+setwd("./miles_publication/")
+
+
 date_today <- gsub("-", "", Sys.Date())
 library(tidyverse)
 library(ggpubr)

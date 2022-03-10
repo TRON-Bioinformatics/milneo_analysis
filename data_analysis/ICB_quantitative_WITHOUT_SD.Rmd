@@ -23,8 +23,10 @@ knit: (
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = F)
 
-# ADJUST PATHS HERE 
-setwd("/projects/SUMMIT/WP1.2/Literature_Cohorts/data_analysis/code/miles_publication/")
+#ADJUST THIS PATH!
+setwd("./miles_publication/")
+
+
 path_to_plots <- "plots/"
 
 date_today <- gsub("-", "", Sys.Date())

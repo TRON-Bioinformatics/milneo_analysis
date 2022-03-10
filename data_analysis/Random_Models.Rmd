@@ -28,9 +28,9 @@ library(tidyverse)
 library(ggpubr)
 library(gridExtra)
 library(gtools)
-library("wesanderson")
 
-setwd("/projects/SUMMIT/WP1.2/Literature_Cohorts/data_analysis/code/miles_publication/")
+# ADJUST THIS PATH 
+setwd("./miles_publication/")
 
 source("data_analysis/functions_evaluation_models.R")
 theme_set(theme_bw())
