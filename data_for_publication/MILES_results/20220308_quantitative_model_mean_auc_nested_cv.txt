@@ -1,0 +1,13 @@
+entity class mean_auc sd_auc num
+MEL+RCC SNV 0.65 0.19 1
+MEL+RCC "Fusion gene" 0.49 0.22 1
+MEL+RCC INDEL 0.58 0.18 1
+MEL+RCC combined 0.54 0.093 1
+MEL SNV 0.72 0.28 1
+MEL "Fusion gene" 0.51 0.29 1
+MEL INDEL 0.67 0.28 1
+MEL combined 0.55 0.12 1
+RCC SNV 0.58 0.41 1
+RCC "Fusion gene" 0.44 0.32 1
+RCC INDEL 0.58 0.44 1
+RCC combined 0.52 0.13 1
