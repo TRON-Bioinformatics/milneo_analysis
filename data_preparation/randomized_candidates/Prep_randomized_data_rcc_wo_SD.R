@@ -4,9 +4,10 @@
 # Hugo Pt 8 
 # McDermott Pt164370145747331
 
+#ADJUST THIS PATH!
+setwd("./miles_publication/")
 
 library(tidyverse)
-setwd("/projects/SUMMIT/WP1.2/Literature_Cohorts/data_analysis/code/miles_publication/")
 source( "import_data.R")
 
 

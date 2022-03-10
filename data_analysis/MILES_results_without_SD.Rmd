@@ -29,7 +29,11 @@ library(ggpubr)
 library(gridExtra)
 library(gtools)
 theme_set(theme_bw())
-setwd("/projects/SUMMIT/WP1.2/Literature_Cohorts/data_analysis/code/miles_publication/data_analysis/")
+
+
+#ADJUST THIS PATH!
+setwd("./miles_publication/")
+
 source("functions_evaluation_models.R")
 
 col_entity <- c("#E7CDC2", "#80A0C7", "#394165")
