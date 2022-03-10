@@ -1,0 +1,271 @@
+---
+title: "MILES"
+author: "Franziska Lang"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_depth: 3    
+    toc_float: true
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+knit: (
+  function(inputFile, encoding) { 
+    rmarkdown::render(
+      inputFile, 
+      encoding = encoding, 
+      output_file = file.path(dirname(inputFile), "feature_importance_miles.html")) }
+      )
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = F)
+
+date_today <- gsub("-", "", Sys.Date())
+library(tidyverse)
+library(ggpubr)
+library(gridExtra)
+library(gtools)
+
+library(dutchmasters)
+
+setwd("/projects/SUMMIT/WP1.2/Literature_Cohorts/data_analysis/code/miles_publication/")
+source("data_analysis/functions_evaluation_models.R")
+theme_set(theme_bw())
+
+path_to_plots <- "plots/"
+
+export_plots <- F
+
+export_table <- F
+```
+
+
+```{r setup, include=FALSE}
+
+performance_with_sd <- read_delim(file = "data_for_publication/MILES_results/20220308_performance_models_with_SD.tsv")
+performance_wo_sd <- read_delim(file = "data_for_publication/MILES_results/20220308_performance_models_without_SD.tsv")
+
+```
+
+# Aim
+
+The feature of interest was permutated and 10x10 CV was repeated. This script compares median performance between permutated feature and 
+
+### 1.1 MEL + RCC
+
+#### 1.1.1 SNVs
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+path_importance<- "data_for_publication/MILES_results/SNV/feature_importance_all"
+
+importance_snv_rcc_mel <- return_feature_importance(path_importance)
+
+importance_snv_rcc_mel <- importance_snv_rcc_mel %>%
+  mutate(difference = performance_with_sd$auc[which(performance_with_sd$entity == "MEL+RCC" & performance_with_sd$class == "SNV" )] - auc)
+
+
+```
+
+#### 1.1.2 fusion genes
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+path_importance<- "data_for_publication/MILES_results/fusion_gene/feature_importance_all"
+
+importance_fusion_rcc_mel <- return_feature_importance(path_importance)
+
+importance_fusion_rcc_mel <- importance_fusion_rcc_mel %>%
+  mutate(difference = performance_with_sd$auc[which(performance_with_sd$entity == "MEL+RCC" & performance_with_sd$class == "Fusion gene" )] - auc)
+
+
+```
+
+
+#### 1.1.3 combined
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+path_importance<- "data_for_publication/MILES_results/combined/feature_importance_all"
+
+importance_combined_rcc_mel <- return_feature_importance(path_importance)
+
+importance_combined_rcc_mel <- importance_combined_rcc_mel %>%
+  mutate(difference = performance_with_sd$auc[which(performance_with_sd$entity == "MEL+RCC" & performance_with_sd$class == "combined" )] - auc)
+
+
+
+```
+
+
+
+### 1.1.4 INDEL
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+path_importance<- "data_for_publication/MILES_results/INDEL/feature_importance_all"
+
+importance_indel_rcc_mel <- return_feature_importance(path_importance)
+
+importance_indel_rcc_mel <- importance_indel_rcc_mel %>%
+  mutate(difference = performance_with_sd$auc[which(performance_with_sd$entity == "MEL+RCC" & performance_with_sd$class == "INDEL" )] - auc)
+
+```
+
+
+### 1.2 MEL
+
+#### 1.2.1 SNVs
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+path_importance<- "data_for_publication/MILES_results/SNV/feature_importance_mel"
+
+importance_snv_mel <- return_feature_importance(path_importance)
+
+
+importance_snv_mel <- importance_snv_mel %>%
+  mutate(difference = performance_with_sd$auc[which(performance_with_sd$entity == "MEL" & performance_with_sd$class == "SNV" )] - auc)
+
+```
+
+#### 1.2.2 combined
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+path_importance<- "data_for_publication/MILES_results/combined/feature_importance_mel"
+
+importance_combined_mel <- return_feature_importance(path_importance)
+
+importance_combined_mel <- importance_combined_mel %>%
+  mutate(difference = performance_with_sd$auc[which(performance_with_sd$entity == "MEL" & performance_with_sd$class == "combined" )] - auc)
+
+
+```
+
+
+
+### 1.2.3 INDEL
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+path_importance<- "data_for_publication/MILES_results/INDEL/feature_importance_mel"
+
+importance_indel_mel <- return_feature_importance(path_importance)
+
+
+importance_indel_mel <- importance_indel_mel %>%
+  mutate(difference = performance_with_sd$auc[which(performance_with_sd$entity == "MEL" & performance_with_sd$class == "INDEL" )] - auc)
+
+
+```
+
+### 1.3 RCC
+
+#### 1.3.1 SNVs
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+path_importance<- "data_for_publication/MILES_results/SNV/feature_importance_rcc_wo_SD"
+
+importance_snv_rcc <- return_feature_importance(path_importance)
+
+importance_snv_rcc <- importance_snv_rcc %>%
+  mutate(difference = performance_wo_sd$auc[which(performance_wo_sd$entity == "RCC" & performance_wo_sd$class == "SNV" )] - auc)
+
+
+```
+
+#### 1.3.2 combined
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+path_importance<- "data_for_publication/MILES_results/combined/feature_importance_rcc_wo_SD"
+
+importance_combined_rcc <- return_feature_importance(path_importance)
+
+
+importance_combined_rcc <- importance_combined_rcc %>%
+  mutate(difference = performance_wo_sd$auc[which(performance_wo_sd$entity == "RCC" & performance_wo_sd$class == "combined" )] - auc)
+
+```
+
+
+#### 1.3.3 Fusion genes
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+path_importance<- "data_for_publication/MILES_results/fusion_gene/feature_importance_rcc_wo_SD"
+
+importance_fusions_rcc <- return_feature_importance(path_importance)
+
+
+importance_fusions_rcc <- importance_fusions_rcc %>%
+  mutate(difference = performance_wo_sd$auc[which(performance_wo_sd$entity == "RCC" & performance_wo_sd$class == "Fusion gene" )] - auc)
+
+
+```
+
+
+## Summary
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+importance_mel_rcc <- bind_rows(list(SNV = importance_snv_rcc_mel, combined = importance_combined_rcc_mel,
+                                     INDEL = importance_indel_rcc_mel, "Fusion gene" = importance_fusion_rcc_mel), .id = "class")
+
+importance_mel <- bind_rows(list(SNV = importance_snv_mel, combined = importance_combined_mel,
+                                     INDEL = importance_indel_mel), .id = "class")
+importance_rcc <- bind_rows(list(SNV = importance_snv_rcc, combined = importance_combined_rcc,
+                                     "Fusion gene" = importance_fusions_rcc), .id = "class")
+
+importance_all <- bind_rows(list("MEL+RCC" = importance_mel_rcc, "MEL" = importance_mel,
+                                     "RCC" = importance_rcc), .id = "entity")
+
+
+plot_importance <- function(importance, type) {
+  importance %>%
+    mutate(class = factor(class, levels = c("SNV", "INDEL", "Fusion gene", "combined"))) %>%
+    filter(entity == type) %>%
+    group_by(feature) %>%
+    filter(any(difference > 0.05)) %>%
+    ungroup() %>%
+    ggplot(aes( difference, reorder(feature, difference),fill = class)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    scale_fill_dutchmasters(palette = "milkmaid")+
+    #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+    ggtitle(type) + 
+    ylab("") +
+    xlab("delta AUC")
+}
+
+
+
+if(export_plots){
+  nam <- paste0(path_to_plots, "/", date_today, "_feature_importance.pdf")
+  pdf(nam, height = 6, width = 10)
+}
+plot_importance(importance_all, type = "MEL+RCC")
+plot_importance(importance_all, type = "MEL")
+plot_importance(importance_all, type = "RCC")
+if(export_plots){
+  dev.off()
+}
+
+importance_all <- importance_all %>%
+  rename("Median AUC after randomization" = auc,"delta AUC" = difference)
+
+if(export_table){
+  write_delim(importance_all, paste0(date_today, "_feature_importance.tsv"), delim = "\t")
+}
+
+
+```
