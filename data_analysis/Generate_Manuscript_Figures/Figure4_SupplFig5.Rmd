@@ -54,10 +54,6 @@ theme_adju <- function(){
 theme_set(theme_adju())
 
 
-col_mutation <- wes_palette("FantasticFox1",3)
-col_entity <- c("#E7CDC2", "#80A0C7", "#394165")
-
-
 path_plots <- "plots/"
 
 export_plots <- F
@@ -122,7 +118,7 @@ p4c <- plot_miles_load(dat_with_sd, entity_ = "MEL", main = "MEL")
 p4d <- plot_miles_load(dat_with_sd, entity_ = "RCC", main = "RCC")
 p4e <-plot_miles_load(dat_with_sd, entity_ = "MEL+RCC", main = "MEL+RCC")
 
-p_with_sd <- ggarrange(p4c, p4d, p4e, ncol = 3, labels = c("C", "D", "E"))
+p_with_sd <- ggarrange(p4e, p4c, p4d,  ncol = 3, labels = c("C", "D", "E"))
 
 ```
 
@@ -177,7 +173,7 @@ p4g <- plot_miles_load(dat_without_sd, entity_ = "MEL", main = "MEL")
 p4h <- plot_miles_load(dat_without_sd, entity_ = "RCC", main = "RCC")
 p4i <-plot_miles_load(dat_without_sd, entity_ = "MEL+RCC", main = "MEL+RCC")
 
-p_without_sd <- ggarrange(p4g, p4h, p4i, ncol = 3,labels = c("F", "G", "H"))
+p_without_sd <- ggarrange(p4i,p4g, p4h,  ncol = 3,labels = c("F", "G", "H"))
 
 ```
 
