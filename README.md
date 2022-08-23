@@ -3,7 +3,9 @@
 
 This repository provides downstream analysis code and data of the manuscript "Multiple instance learning to predict immune checkpoint blockade efficacy using neoantigen candidates" (https://doi.org/10.1101/2022.05.06.490587)
 
-This repository contains all raw, intermediate and downstream data that was generated in this work.
+R markdown-Scripts to generate the figures of the manuscript can be found [here](data_analysis/Generate_Manuscript_Figures).  
+
+Furthermore, this repository contains all raw, intermediate and downstream data that was generated in this work:  
 
 *  Detected neoantigen candidates from SNVs, INDELs and fusion genes for 5 ICB cohorts can be found [here](data_for_publication/raw_data)
 *  All R-scripts related to data preparation for MILES can be found in the folder [data_preparation](data_preparation)
@@ -24,4 +26,3 @@ This repository contains all raw, intermediate and downstream data that was gene
     * Summarize_MILES_x.Rmd : summarises the performance results from MILES.
     * Summarize_neoantigen_candidate_load_x.RmD : Analysis of the neoantigen candidate load
     * ROC_analysis_neoantigen_candidate_load.RmD : ROC-curve analysis of predicting ICB efficacy based on neoantigen candidate load
-* Scripts to generate the figures of the manuscript can be found [here](data_analysis/Generate_Manuscript_Figures)
