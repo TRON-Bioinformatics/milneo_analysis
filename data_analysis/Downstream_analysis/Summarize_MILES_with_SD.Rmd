@@ -1,5 +1,5 @@
 ---
-title: "MILES without SD patients"
+title: "MILES"
 author: "Franziska Lang"
 date: "`r Sys.Date()`"
 output: 
@@ -16,7 +16,7 @@ knit: (
     rmarkdown::render(
       inputFile, 
       encoding = encoding, 
-      output_file = file.path(dirname(inputFile), "overview_miles_wo_SD.html")) }
+      output_file = file.path(dirname(inputFile), "overview_miles.html")) }
       )
 ---
 
@@ -28,28 +28,31 @@ library(tidyverse)
 library(ggpubr)
 library(gridExtra)
 library(gtools)
-theme_set(theme_bw())
-
 
 #ADJUST THIS PATH!
 setwd("./miles_publication/")
 
-source("functions_evaluation_models.R")
+
+source("data_analysis/functions_evaluation_models.R")
+theme_set(theme_bw())
+
 
 col_entity <- c("#E7CDC2", "#80A0C7", "#394165")
+
 path_plots <- "plots/"
 
 export_plots <- F
+
 export_table <- F
 ```
 
 
 ## AIM
 
-Summary of MILES performance in context of the mutation type and mutation entity. Patients with stable disesase (SD) were excluded. 
+Summary of MILES performance in context of the mutation type and mutation entity. 
 Import Tuning results and calculate median ROC-AUC over 10x10 CV to determine the best hyper-parameter set that will represent performance of MILES on the respective data subset. 
 
-## 1 Hyperparameter Tuning
+## 1 Import results from hyperparameter tuning in nested CV
 
 ### 1.1 MEL + RCC
 
@@ -57,12 +60,14 @@ Import Tuning results and calculate median ROC-AUC over 10x10 CV to determine th
 
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
 
-path_to_files_snvs <- "../data_for_publication/MILES_results/SNV/miles_all_wo_SD/"
+
+path_to_files_snvs <- "data_for_publication/MILES_results/SNV/miles_all/"
 
 
 dat_snv_import <- import_cv(path_to_files_snvs)
 dat_snv <- transform_performance(dat_snv_import)
 best_model_snv_rcc_mel <- get_best_model(dat_snv)
+
 
 ```
 
@@ -72,12 +77,13 @@ best_model_snv_rcc_mel <- get_best_model(dat_snv)
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
 
 
-path_to_files_fusions <- "../data_for_publication/MILES_results/fusion_gene//miles_all_wo_SD/"
+path_to_files_fusions <- "data_for_publication/MILES_results/fusion_gene//miles_all/"
 
 
 dat_fusion_import <- import_cv(path_to_files_fusions)
 dat_fusion <- transform_performance(dat_fusion_import)
 best_model_fusion_rcc_mel <- get_best_model(dat_fusion)
+
 
 ```
 
@@ -88,7 +94,7 @@ best_model_fusion_rcc_mel <- get_best_model(dat_fusion)
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
 
 
-path_to_files_combined <- "../data_for_publication/MILES_results/combined//miles_all_wo_SD/"
+path_to_files_combined <- "data_for_publication/MILES_results/combined///miles_all/"
 
 
 dat_combined_import <- import_cv(path_to_files_combined)
@@ -104,12 +110,13 @@ best_model_combined_rcc_mel <- get_best_model(dat_combined)
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
 
 
-path_to_files_indel <- "../data_for_publication/MILES_results/INDEL//miles_all_wo_SD/"
+path_to_files_indel <-  "data_for_publication/MILES_results/INDEL/miles_all/"
 
 
 dat_indel_import <- import_cv(path_to_files_indel)
 dat_indel <- transform_performance(dat_indel_import)
 best_model_indel_rcc_mel <- get_best_model(dat_indel)
+
 
 ```
 
@@ -121,7 +128,7 @@ best_model_indel_rcc_mel <- get_best_model(dat_indel)
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
 
 
-path_to_files_snvs <- "../data_for_publication/MILES_results/SNV/miles_mel_wo_SD//"
+path_to_files_snvs <- "data_for_publication/MILES_results/SNV/miles_mel/"
 
 
 dat_snv_import <- import_cv(path_to_files_snvs)
@@ -137,12 +144,13 @@ best_model_snv_mel <- get_best_model(dat_snv)
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
 
 
-path_to_files_combined <- "../data_for_publication/MILES_results/combined///miles_mel_wo_SD//"
+path_to_files_combined <- "data_for_publication/MILES_results/combined//miles_mel/"
 
 
 dat_combined_import <- import_cv(path_to_files_combined)
 dat_combined <- transform_performance(dat_combined_import)
 best_model_combined_mel <- get_best_model(dat_combined)
+
 
 ```
 
@@ -152,13 +160,12 @@ best_model_combined_mel <- get_best_model(dat_combined)
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
 
 
-path_to_files_fusions <- "../data_for_publication/MILES_results/fusion_gene//miles_mel_wo_SD//"
+path_to_files_fusions <- "data_for_publication/MILES_results/fusion_gene/miles_mel/"
 
 
 dat_fusion_import <- import_cv(path_to_files_fusions)
 dat_fusion <- transform_performance(dat_fusion_import)
 best_model_fusion_mel <- get_best_model(dat_fusion)
-
 
 ```
 
@@ -169,12 +176,13 @@ best_model_fusion_mel <- get_best_model(dat_fusion)
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
 
 
-path_to_files_indel <- "../data_for_publication/MILES_results/INDEL///miles_mel_wo_SD//"
+path_to_files_indel <- "data_for_publication/MILES_results/INDEL/miles_mel/"
 
 
 dat_indel_import <- import_cv(path_to_files_indel)
 dat_indel <- transform_performance(dat_indel_import)
 best_model_indel_mel <- get_best_model(dat_indel)
+
 
 ```
 
@@ -185,12 +193,14 @@ best_model_indel_mel <- get_best_model(dat_indel)
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
 
 
-path_to_files_snvs <- "../data_for_publication/MILES_results/SNV///miles_rcc_wo_SD/"
+path_to_files_snvs <- "data_for_publication/MILES_results/SNV/miles_rcc/"
 
 
 dat_snv_import <- import_cv(path_to_files_snvs)
 dat_snv <- transform_performance(dat_snv_import)
 best_model_snv_rcc <- get_best_model(dat_snv)
+
+
 
 ```
 
@@ -200,7 +210,7 @@ best_model_snv_rcc <- get_best_model(dat_snv)
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
 
 
-path_to_files_combined <- "../data_for_publication/MILES_results/combined/miles_rcc_wo_SD/"
+path_to_files_combined <- "data_for_publication/MILES_results/combined//miles_rcc/"
 
 
 dat_combined_import <- import_cv(path_to_files_combined)
@@ -214,14 +224,17 @@ best_model_combined_rcc <- get_best_model(dat_combined)
 
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
 
-path_to_files_fusions <- "../data_for_publication/MILES_results/fusion_gene/miles_rcc_wo_SD/"
+
+path_to_files_fusions <- "data_for_publication/MILES_results/fusion_gene///miles_rcc/"
 
 
 dat_fusion_import <- import_cv(path_to_files_fusions)
 dat_fusion <- transform_performance(dat_fusion_import)
 best_model_fusion_rcc <- get_best_model(dat_fusion)
 
+
 ```
+
 
 
 ### 1.3.4 INDEL
@@ -229,7 +242,7 @@ best_model_fusion_rcc <- get_best_model(dat_fusion)
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
 
 
-path_to_files_indel <- "../data_for_publication/MILES_results/INDEL/miles_rcc_wo_SD/"
+path_to_files_indel <- "data_for_publication/MILES_results/INDEL/miles_rcc/"
 
 
 dat_indel_import <- import_cv(path_to_files_indel)
@@ -239,7 +252,7 @@ best_model_indel_rcc <- get_best_model(dat_indel)
 ```
 
 
-## Best models
+## 2 Identification of best models
 
 
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
@@ -258,36 +271,23 @@ auc_rcc <- list(SNV = best_model_snv_rcc, "Fusion gene" = best_model_fusion_rcc,
 auc_rcc <- lapply(auc_rcc, function(x) x%>% mutate(sigma2 = as.numeric(sigma2), c = as.numeric(c)))
 auc_rcc <- bind_rows(auc_rcc, .id = "class")
 
+# identify best models per group
 auc_overall <- bind_rows(list("MEL+RCC" = auc_rcc_mel, "MEL" = auc_mel, "RCC" = auc_rcc), .id = "entity")
 
-if(export_table){
-  write_delim(auc_overall, paste0("data_for_publication/", date_today, "_performance_models_without_SD.tsv"), delim = "\t")
-}
-
-
-if(export_plots){
-  f <- paste0(path_plots, date_today, "_performance_without_SD.pdf")
-  pdf(f, width = 10, height = 7)
-}
-auc_overall %>%
-  mutate(class = factor(class, levels = c("SNV", "INDEL", "Fusion gene", "combined"))) %>%
-  mutate(entity = factor(entity, levels = c("MEL+RCC", "MEL", "RCC"))) %>%
-  ggplot(aes(class, auc, fill = entity))+
-  geom_bar(stat = "identity", position = "dodge")+
-  geom_hline(yintercept = 0.5) +
-  geom_errorbar(aes(ymin=auc-auc_iqr , ymax=auc+auc_iqr ), width=.2,
-                 position=position_dodge(.9), color = "darkgrey") +
-  scale_fill_manual(values = rev(col_entity))
-
-auc_overall %>%
-  ggplot(aes(sigma2, c, color = entity, shape = class))+
-  scale_color_manual(values = col_entity)+
-  scale_x_continuous(trans = "log10")+
-  geom_point( size = 10)
+paht_entity = c("MEL+RCC" = "miles_all", "MEL" = "miles_mel", "RCC" = "miles_rcc" )
+auc_overall_path <- auc_overall %>%
+  mutate(mut_path = ifelse(class == "Fusion gene", "fusion_gene", class)) %>%
+  mutate(entity_path = paht_entity[entity]) %>%
+  mutate(path_file = paste0("data_for_publication/MILES_results/",mut_path, "/", entity_path, "/miles_", gsub(" ", "", format(sigma2, scientific = FALSE)), "_", c, ".tsv"))
   
-if(export_plots){
-  dev.off()
+
+
+if(export_table){
+  nam <- "data_for_publication/MILES_results/MILES_best_models_with_SD.tsv"
+  write_delim(auc_overall_path, nam, delim = "\t")
 }
+
+
 
 
 ```
