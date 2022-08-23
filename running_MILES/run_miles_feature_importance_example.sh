@@ -1,21 +1,20 @@
 
-#best conditions for combined: all predictd neoantigen candidates and filtered features
-# use data 20211006
+# this is an example SLURM script  how feature importance analysis was run with best hyperparameter set
+# here: SNVs + all ICB cohorts
 
-
-acc=usr
-id=FEATURE_IMPORTANCE_SNV_SUMMIT
-
-pathSVM="./miles_publication"
-path_infile=$pathSVM/data_for_publication/MILES_input/SNV
-path_data=$path_infile/20220310feature_importance/
-
-path_results=$pathSVM/data_for_publication/MILES_results/SNV/
-outpath=$path_results/feature_importance_all/
+# THIS NEEDS TO BE ADJUSTED BY THE USER
+acc=usr # account name
+partition=partition #partition name
+id=FEATURE_IMPORTANCE_SNV_SUMMIT # job name
+pathSVM="./miles_publication" # main path
+path_infile=$pathSVM/data_for_publication/MILES_input/SNV # path to input data
+path_data=$path_infile/20220310feature_importance/ # path to input data -->  files with feature of interest permutated
+path_results=$pathSVM/data_for_publication/MILES_results/SNV/ # path to output
+outpath=$path_results/feature_importance_all/ # path to output
 
 mkdir -p $outpath
 
-# best hyperparameter set
+# choose best hyperparameter set
 # e.g.
 sigmas2=10000
 c_values=0.1
@@ -35,8 +34,8 @@ do
   output=$outpath/"$name".out
   echo $outfile
   echo $infile
-  echo "python $pathSVM/code/training/MILES_cross_validation.py $sigmas2 $c_values $infile $outfile"
-  sbatch --account $acc -p Compute --job-name $id --time=120:00:00 --output=$output --error=$error --mem=4G -n 5 -N 1 --wrap="
-  python $pathSVM/code/training/MILES_cross_validation.py $sigmas2 $c_values $infile $outfile"
+  echo "python $pathSVM/data_for_publication/running_MILES/MILES_cross_validation.py $sigmas2 $c_values $infile $outfile"
+  sbatch --account $acc -p $partition --job-name $id  --output=$output --error=$error --mem=4G -n 5 -N 1 --wrap="
+  python $pathSVM/data_for_publication/running_MILES/MILES_cross_validation.py $sigmas2 $c_values $infile $outfile"
 
 done
