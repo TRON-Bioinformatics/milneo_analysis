@@ -118,10 +118,10 @@ compare_random_best <- function(path_random, path_best, class = ""){
     geom_boxplot() +
     ylab("AUC")+ theme(legend.position="none")+
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
-    stat_compare_means() +
+    stat_compare_means(size = 2) +
     ggtitle(class) + 
     xlab("")+
-    ylim(c(0,1))
+    scale_y_continuous(expand = expansion(mult = c(0, 0.1)), limits = c(0, NA))
 }
 
 
@@ -134,4 +134,57 @@ return_feature_importance <- function(path){
   mean_auc <- transform_mean_auc_importance(dat_imp)
   return(mean_auc)
   
+}
+
+
+plot_miles_load <- function(dat, entity_ = "MEL", main = NULL){
+  col_type = c("#24796C","#DAA51B")
+  
+  dat <- dat %>%
+    mutate(mutation_type =ifelse(mutation_type == "combined", "all", mutation_type)) 
+  
+  pvals <- dat %>%
+    group_by(mutation_type, entity) %>%
+    wilcox_test(AUROC ~ type) 
+  
+  pvals <- pvals %>% 
+    mutate(y.position = c(1.03)) %>%
+    mutate(p_ = signif(p, digits = 2))
+  
+  dat %>%
+    filter(entity == entity_) %>%
+    ggplot(aes(type, AUROC))+
+    geom_boxplot(aes(fill = type))+
+    scale_fill_manual(values = col_type)+
+    facet_wrap(~ mutation_type, ncol = 4)+
+    stat_pvalue_manual(pvals %>% filter(entity == entity_), label = "p_", size = 2) +
+    xlab("")+
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 45,  hjust=1),
+          panel.spacing = unit(0, "lines"),
+          strip.text.x = element_text(size = 6))+
+    scale_x_discrete(labels=c("MILES" = "MILES", "Neoantigen candidate load" = "Neoantigen\ncandidate load"))+
+    ggtitle(main)
+}
+
+
+plot_importance <- function(importance, type) {
+  
+  col_mut <- c("SNV" = "#88CCEE","INDEL" = "#CC6677", "Fusion gene" = "#DDCC77","combined" = "#117733")
+  
+  col_mut <- col_mut[which(names(col_mut) %in% importance$class)]
+  
+  importance %>%
+    mutate(class = factor(class, levels = c("SNV", "INDEL", "Fusion gene", "combined"))) %>%
+    filter(entity == type) %>%
+    group_by(feature) %>%
+    filter(any(difference > 0.05)) %>%
+    ungroup() %>%
+    ggplot(aes(difference, reorder(feature, difference), fill = class)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    scale_fill_manual(values = col_mut)+
+    #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))+
+    ggtitle(type) + 
+    ylab("") +
+    xlab("delta AUC")
 }
