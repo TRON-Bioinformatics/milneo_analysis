@@ -7,10 +7,10 @@ This repository contains all raw, intermediate and downstream data that was gene
 
 *  Detected neoantigen candidates from SNVs, INDELs and fusion genes for 5 ICB cohorts can be found [here](data_for_publication/raw_data)
 *  All R-scripts related to data preparation for MILES can be found in the folder [data_preparation](data_preparation)
-    * R-scripts for each tumor entity to generate datasets in the context of the mutation type to run MILES [here](data_preparation). The suffix "wo_SD" indicates that patients with stable disease are not considered in this analysis.
-    * R-scripts  for each tumor entity to generate data for feature importance analysis [here](data_preparation/feature_importance)
-    * R-scripts  for each tumor entity to generate randomized data [here](data_preparation/randomized_candidates)
-*  The MILES input data as it was used in this study can be found here. [here](data_for_publication/MILES_input). There is a folder for each mutation type (here: combined = all mutation types). E.g. :
+    * R-scripts for each tumor entity to generate datasets in the context of the mutation type to run MILES are [here](data_preparation). The suffix "wo_SD" indicates that patients with stable disease are not considered in this analysis.
+    * R-scripts  for each tumor entity to generate data for feature importance analysis are [here](data_preparation/feature_importance)
+    * R-scripts  for each tumor entity to generate randomized data are [here](data_preparation/randomized_candidates)
+*  The MILES input data as it was used in this study can be found  [here](data_for_publication/MILES_input). There is a folder for each mutation type (here: combined = all mutation types). E.g. :
     * data_miles.csv : all patients  
     * data_without_SD.csv : all patients without stable disease  
     * data_miles_mel.csv : all melanoma patients  
