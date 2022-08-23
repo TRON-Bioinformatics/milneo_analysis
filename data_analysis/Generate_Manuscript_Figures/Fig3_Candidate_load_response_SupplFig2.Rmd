@@ -1,0 +1,597 @@
+---
+title: "Quantitative analysis ICB"
+author: "Franziska Lang"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_depth: 3    
+    toc_float: true
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+knit: (
+  function(inputFile, encoding) { 
+    rmarkdown::render(
+      inputFile, 
+      encoding = encoding, 
+      output_file = file.path(dirname(inputFile), "icb_data_with_SD.html")) }
+      )
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = F)
+
+
+#ADJUST THIS PATH!
+#setwd("./miles_publication/")
+
+
+date_today <- gsub("-", "", Sys.Date())
+library(tidyverse)
+library(ggpubr)
+library(gridExtra)
+library("wesanderson")
+source("data_analysis/functions_icb2neo.R")
+
+library(ROCR)
+theme_adju <- function(){
+  theme_bw()+ 
+  theme(axis.text=element_text(colour="black"))+ 
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+                  legend.position = "top",
+        legend.justification="right",
+      legend.margin=margin(0,0,0,0),
+      legend.box.margin=margin(-10,-10,-10,-10),
+      legend.title = element_blank(),
+      legend.text = element_text(size = 6),
+      title = element_text(size = 7),
+      axis.text = element_text(size = 6),
+          axis.title = element_text(size = 7))
+}
+
+theme_set(theme_adju())
+
+
+col_mutation <- wes_palette("FantasticFox1",3)
+col_expressed <- wes_palette("Chevalier1",2)
+col_entity <- c("#E7CDC2", "#80A0C7", "#394165")
+
+path_to_plots <- "plots/"
+export_plots <- FALSE
+
+export_table <- FALSE
+
+```
+
+```{setup, include=FALSE}
+
+
+# technical issues with iCaM --> SNVs + INDELs will be counted as NA 
+# Hugo Pt 8 
+# McDermott Pt164370145747331
+# 
+
+
+# no SNVs/INDELS were detected for the following patients why here we can count 0
+# Riaz pre Pt24
+# McDermott Pt204886393976620
+
+```
+
+```{r setup, include=FALSE}
+#neoantigen features
+features_full <- c("Best_rank_MHCI_score", "Best_rank_MHCII_score", "rnaExpression", "Pathogensimiliarity_MHCI_9mer", "Pathogensimiliarity_MHCII",
+                     "Selfsimilarity_MHCI", "Selfsimilarity_MHCII", "rnaVariantAlleleFrequency", "Amplitude_MHCII_rank", "Amplitude_MHCI_affinity",
+                     "DAI_MHCI_affinity", "Dissimilarity_MHCI", "Generator_rate_MHCI", "Generator_rate_MHCII", "IEDB_Immunogenicity_MHCI", 
+                     "IEDB_Immunogenicity_MHCII","MixMHC2pred_best_rank", "MixMHCpred_best_rank", "PHBR_I", "PHBR_II", "vaxrank_binding_score",
+                     "Hex_alignment_score_MHCI", "Hex_alignment_score_MHCII", "Neoag_immunogenicity" , "Priority_score", "Recognition_Potential_MHCI_9mer",
+                   "Tcell_predictor_score", "vaxrank_total_score", "PRIME_best_rank")
+
+
+
+```
+
+
+
+## AIM
+
+This code generates Figure 3 and Supplemental Figure 2 of the manuscript 
+
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+# neoantigen canidate load data
+dat_count <- read_delim("data_for_publication/raw_data/neoantigen_candidate_load.tsv")
+count50 <- read_delim("data_for_publication/raw_data/neoantigen_candidate_load_50nM.tsv")
+count50_expressed <- read_delim("data_for_publication/raw_data/neoantigen_candidate_load_50nM_expressed.tsv")
+
+# p-values comparing neoantigen candidate load between responder and non-responder
+dat_pvalues <- read_delim("data_for_publication/raw_data/neoantigen_candidate_load_p_values.tsv", delim = "\t")
+
+technical_problems <- c("Hugo_Pt8", "Miao_tRCC_106","McDermott_Pt164370145747331")
+DF2_plot <- dat_count %>%
+  select(-`All mutation types neoantigen candidate load`) %>%
+  pivot_longer(cols = c(`SNV neoantigen candidate load`, `INDEL neoantigen candidate load`, `Fusion gene neoantigen candidate load` ),
+              names_to =  "mutation_type",
+              values_to = "count") %>%
+  mutate(mutation_type = gsub(" neoantigen candidate load", "", mutation_type)) %>%
+  mutate(Cohort = factor(Cohort, levels = c("Van Allen", "Hugo", "Riaz", "Miao", "McDermott"))) %>%
+  mutate(mutation_type = factor(mutation_type, levels = c("SNV", "INDEL", "Fusion gene"))) %>%
+  dplyr::rename(cohort_patient = cohort_pat ) %>%
+  mutate(count = ifelse(is.na(count) & !(cohort_patient %in% technical_problems), 0, count )) %>%
+  mutate(entity = ifelse(Cohort %in% c("Van Allen", "Hugo", "Riaz"), "MEL", "RCC"))
+
+```
+
+
+
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+dat_pvalues <- dat_pvalues %>%
+  mutate(signif_adjusted = ifelse(p_adjusted < 0.05 , TRUE, FALSE))%>%
+  mutate(signif= ifelse(p < 0.05 , TRUE, FALSE))
+
+
+col_pal <- c( RColorBrewer::brewer.pal(5, "GnBu")[3:5], "grey90") 
+
+
+# Figure 3D
+S_binary <- dat_pvalues %>%
+  #mutate(p.binary = ifelse(p.signif == "ns", FALSE, TRUE)) %>%
+  mutate(cohort = factor(cohort, levels = c("all", "MEL", "Hugo", "Riaz", "Van Allen", "RCC", "Miao", "McDermott"))) %>%
+  mutate(method = factor(method, levels = rev(c("all", "all_expressed", "MHC1000",  "MHC1000_expressed", "MHC500","MHC500_expressed", "MHC50", "MHC50_expressed")))) %>%
+  ggplot(aes(cohort, method, fill = signif)) +
+  geom_tile(color = "grey") + 
+  facet_wrap(vars(class), ncol = 4) + 
+  scale_fill_manual(values = c("white", "#0868AC"))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ylab("")+
+  xlab("")
+
+# Nothing significant after multiple testing correction 
+S_binary_adjusted  <- dat_pvalues %>%
+  #mutate(p.binary = ifelse(p.signif == "ns", FALSE, TRUE)) %>%
+  mutate(cohort = factor(cohort, levels = c("all", "MEL", "Hugo", "Riaz", "Van Allen", "RCC", "Miao", "McDermott"))) %>%
+  mutate(method = factor(method, levels = rev(c("all", "all_expressed", "MHC1000",  "MHC1000_expressed", "MHC500","MHC500_expressed", "MHC50", "MHC50_expressed")))) %>%
+  ggplot(aes(cohort, method, fill = signif_adjusted)) +
+  geom_tile(color = "grey") + 
+  facet_wrap(vars(class), ncol = 4) + 
+  scale_fill_manual(values = c("white", "#0868AC"))+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ylab("")+
+  xlab("")
+
+S_pvalue <- dat_pvalues %>%
+  mutate(p.binary = ifelse(p.signif == "ns", FALSE, TRUE)) %>%
+  mutate(cohort = factor(cohort, levels = c("all", "MEL", "Hugo", "Riaz", "Van Allen", "RCC", "Miao", "McDermott"))) %>%
+  mutate(method = factor(method, levels = rev(c("all", "all_expressed", "MHC1000",  "MHC1000_expressed", "MHC500","MHC500_expressed", "MHC50", "MHC50_expressed")))) %>%
+  ggplot(aes(cohort, method, fill = -1*log10(p_adjusted))) +
+  geom_tile(color = "black", lwd = 0.5) + 
+  facet_wrap(vars(class), ncol = 4) + 
+  scale_fill_distiller("Blues", trans = "reverse")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ylab("")+
+  xlab("")
+
+
+
+
+
+```
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+dat_pvalues <- dat_pvalues %>%
+  mutate(p_adjusted = signif(p_adjusted, 2))
+
+# RIAZ INDEL
+p3a_pval <- dat_pvalues %>%
+  filter(class == "INDEL" & cohort == "Riaz" & method == "all")
+p3a <- DF2_plot %>%
+  filter(Cohort == "Riaz" & mutation_type == "INDEL") %>%
+  mutate(binary_response = factor(binary_response)) %>%
+  make_boxplot_response(main = "Riaz : INDEL : all", pval = p3a_pval)
+
+p3b_pval <- dat_pvalues %>%
+  filter(class == "INDEL" & cohort == "Riaz" & method == "MHC50")
+p3b <- count50 %>%
+  filter(cohort == "riaz_pre" & class == "INDEL") %>%
+  mutate(binary_response = factor(binary_response)) %>%
+  make_boxplot_response(main = "Riaz : INDEL : MHC < 50", pval = p3b_pval)
+
+p3c_pval <- dat_pvalues %>%
+  filter(class == "INDEL" & cohort == "Riaz" & method == "MHC50_expressed")
+p3c <- count50_expressed   %>%
+  filter(cohort == "riaz_pre" & class == "INDEL") %>%
+  mutate(binary_response = factor(binary_response)) %>%
+  make_boxplot_response(main = "Riaz : INDEL : expressed + MHC < 50 ", p3c_pval)
+
+
+
+# ALL --> SNV 
+p1_pval <- dat_pvalues %>%
+  filter(class == "SNV" & cohort == "all" & method == "all")
+p1 <- DF2_plot %>% 
+  filter(mutation_type == "SNV") %>%
+  make_boxplot_response(main = "all cohorts : SNV", pval = p1_pval)
+
+p2_pval <- dat_pvalues %>%
+  filter(class == "SNV" & cohort == "all" & method == "MHC50")
+p2 <- count50 %>%
+  filter(class == "SNV") %>%
+  make_boxplot_response(main = "all cohorts : SNV : MHC < 50 ", pval = p2_pval)
+
+p3_pval <- dat_pvalues %>%
+  filter(class == "SNV" & cohort == "all" & method == "MHC50_expressed")  
+p3<- count50_expressed %>%
+  filter(class == "SNV") %>%
+  make_boxplot_response(main = "all cohorts : SNV : expressed + MHC < 50", pval = p3_pval)
+
+
+
+# ALL --> INDEL 
+p4_pval <- dat_pvalues %>%
+  filter(class == "INDEL" & cohort == "all" & method == "all")
+p4 <- DF2_plot %>% 
+  filter(mutation_type == "INDEL") %>%
+  make_boxplot_response(main = "all cohorts : INDEL", pval = p4_pval)
+
+p5_pval <- dat_pvalues %>%
+  filter(class == "INDEL" & cohort == "all" & method == "MHC50")
+p5 <- count50 %>%
+  filter(class == "INDEL") %>%
+  make_boxplot_response(main = "all : INDEL : MHC < 50 ", pval = p5_pval)
+
+p6_pval <- dat_pvalues %>%
+  filter(class == "INDEL" & cohort == "all" & method == "MHC50_expressed")  
+p6 <- count50_expressed %>%
+  filter(class == "INDEL") %>%
+  make_boxplot_response(main = "all : INDEL :  expressed + MHC < 50", pval = p6_pval)
+
+
+# ALL --> Fusion gene 
+p7_pval <- dat_pvalues %>%
+  filter(class == "Fusion gene" & cohort == "all" & method == "all")
+p7 <- DF2_plot %>% 
+  filter(mutation_type == "Fusion gene") %>%
+  make_boxplot_response(main = "all cohorts : Fusion gene", pval = p7_pval)
+
+p8_pval <- dat_pvalues %>%
+  filter(class == "Fusion gene" & cohort == "all" & method == "MHC50")
+p8 <- count50 %>%
+  filter(class == "Fusion gene") %>%
+  make_boxplot_response(main = "all : INDEL : MHC < 50 ", pval = p8_pval)
+
+p9_pval <- dat_pvalues %>%
+  filter(class == "Fusion gene" & cohort == "all" & method == "MHC50_expressed")
+p9 <- count50_expressed %>%
+  filter(class == "Fusion gene") %>%
+  make_boxplot_response(main = "all : Fusion gene :  expressed + MHC < 50", pval = p9_pval)
+
+
+
+
+```
+
+
+
+
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+# FIGURE 3 
+if(export_plots){
+  nam <- paste0(path_to_plots, "/", date_today, "_Figure3.pdf")
+  pdf(nam)
+}
+
+p31 <- ggarrange(p3a, p3b, p3c, labels = c("A", "B", "C"), ncol = 3, nrow = 2, heights = c(1, 0.5))
+
+ggarrange(p31, ggarrange(S_binary_adjusted, labels = c("D"), nrow  = 2, heights = c(1.5, 0.5)) , nrow = 2)
+
+if(export_plots){
+  dev.off()
+}
+
+
+# Supplemental Figure 3A 
+if(export_plots){
+  nam <- paste0(path_to_plots, "/", date_today, "_SupplFig2.pdf")
+  pdf(nam)
+}
+
+p1_1 <- ggarrange(p1, p2, p3, p4, p5, p6, p7 , p8, p9 , common.legend = TRUE,
+          labels = c("A", "B", "C", "D", "E", "F", "G", "H", "I"),
+          ncol = 3, nrow = 3)  
+
+
+ggarrange(p1_1, ggarrange(S_pvalue, labels = "J") , nrow = 2, heights = c(1.3, 0.7))
+
+if(export_plots){
+  dev.off()
+}
+
+```
+
+
+#### 2.1.2 Combined
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+DF2_resp_combined <- DF2_resp %>%
+  filter(!is.na(binary_response))%>%
+  filter(!is.na(count))
+
+DF2_resp_combined_folds <- nested_CV(DF2_resp_combined)
+predictions_full <- lapply(DF2_resp_combined_folds, function(y) y$count)
+binary_response <- lapply(DF2_resp_combined_folds, function(y) y$binary_response)
+auc_combined <- roc_with_cv(predictions_full = predictions_full, labels = binary_response)
+
+
+```
+
+
+#### 2.1.3 Fusions
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+DF2_resp_fusions <- DF2_resp %>%
+  filter(class == "Fusion gene") %>%
+  filter(!is.na(binary_response))%>%
+  filter(!is.na(count))
+
+DF2_resp_fusions_folds <- nested_CV(DF2_resp_fusions)
+predictions_full <- lapply(DF2_resp_fusions_folds, function(y) y$count)
+binary_response <- lapply(DF2_resp_fusions_folds, function(y) y$binary_response)
+auc_fusions <- roc_with_cv(predictions_full = predictions_full, labels = binary_response)
+
+
+```
+
+
+#### 2.1.4 INDELS
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+DF2_resp_indel <- DF2_resp %>%
+  filter(class == "INDEL") %>%
+  filter(!is.na(binary_response))%>%
+  filter(!is.na(count))
+
+DF2_resp_indel_folds <- nested_CV(DF2_resp_indel)
+predictions_full <- lapply(DF2_resp_indel_folds, function(y) y$count)
+binary_response <- lapply(DF2_resp_indel_folds, function(y) y$binary_response)
+auc_indel <- roc_with_cv(predictions_full = predictions_full, labels = binary_response)
+
+
+```
+
+
+### 2.2 MEL
+
+#### 2.2.1 SNV
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+# SNVS
+DF2_resp_snv <- DF2_resp %>%
+  filter(cohort.x %in% c("Van Allen","Hugo", "Riaz" ))%>%
+  filter(class == "SNV") %>%
+  filter(!is.na(binary_response))%>%
+  filter(!is.na(count))
+
+
+DF2_resp_snv_folds <- nested_CV(DF2_resp_snv)
+predictions_full <- lapply(DF2_resp_snv_folds, function(y) y$count)
+binary_response <- lapply(DF2_resp_snv_folds, function(y) y$binary_response)
+auc_snvs_mel <- roc_with_cv(predictions_full = predictions_full, labels = binary_response)
+
+
+```
+
+#### 2.2.2 Combined
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+DF2_resp_combined <- DF2_resp %>%
+  filter(cohort.x %in% c("Van Allen","Hugo", "Riaz" ))%>%
+  filter(!is.na(binary_response))%>%
+  filter(!is.na(count))
+
+DF2_resp_combined_folds <- nested_CV(DF2_resp_combined)
+predictions_full <- lapply(DF2_resp_combined_folds, function(y) y$count)
+binary_response <- lapply(DF2_resp_combined_folds, function(y) y$binary_response)
+auc_combined_mel <- roc_with_cv(predictions_full = predictions_full, labels = binary_response)
+
+```
+
+
+#### 2.2.3 Fusions
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+DF2_resp_fusions <- DF2_resp %>%
+  filter(cohort.x %in% c("Van Allen","Hugo", "Riaz" ))%>%
+  filter(class == "Fusion gene") %>%
+  filter(!is.na(binary_response))%>%
+  filter(!is.na(count))
+
+DF2_resp_fusions_folds <- nested_CV(DF2_resp_fusions)
+predictions_full <- lapply(DF2_resp_fusions_folds, function(y) y$count)
+binary_response <- lapply(DF2_resp_fusions_folds, function(y) y$binary_response)
+auc_fusions_mel <- roc_with_cv(predictions_full = predictions_full, labels = binary_response)
+
+
+```
+
+
+#### 2.2.4 INDELS
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+DF2_resp_indel <- DF2_resp %>%
+  filter(cohort.x %in% c("Van Allen","Hugo", "Riaz" ))%>%
+  filter(class == "INDEL") %>%
+  filter(!is.na(binary_response))%>%
+  filter(!is.na(count))
+
+DF2_resp_indel_folds <- nested_CV(DF2_resp_indel)
+predictions_full <- lapply(DF2_resp_indel_folds, function(y) y$count)
+binary_response <- lapply(DF2_resp_indel_folds, function(y) y$binary_response)
+auc_indel_mel <- roc_with_cv(predictions_full = predictions_full, labels = binary_response)
+
+
+```
+
+
+### 2.3 RCC
+#### 2.3.1 SNV
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+# SNVS
+DF2_resp_snv <- DF2_resp %>%
+  filter(cohort.x %in% c("Miao","McDermott" ))%>%
+  filter(class == "SNV") %>%
+  filter(!is.na(binary_response))%>%
+  filter(!is.na(count))
+
+
+DF2_resp_snv_folds <- nested_CV(DF2_resp_snv)
+predictions_full <- lapply(DF2_resp_snv_folds, function(y) y$count)
+binary_response <- lapply(DF2_resp_snv_folds, function(y) y$binary_response)
+auc_snvs_rcc <- roc_with_cv(predictions_full = predictions_full, labels = binary_response)
+
+
+```
+
+#### 2.3.2 Combined
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+# SNVS
+DF2_resp_combined <- DF2_resp %>%
+  filter(cohort.x %in% c("Miao","McDermott" ))%>%
+  filter(!is.na(binary_response))%>%
+  filter(!is.na(count))
+
+DF2_resp_combined_folds <- nested_CV(DF2_resp_combined)
+predictions_full <- lapply(DF2_resp_combined_folds, function(y) y$count)
+binary_response <- lapply(DF2_resp_combined_folds, function(y) y$binary_response)
+auc_combined_rcc <- roc_with_cv(predictions_full = predictions_full, labels = binary_response)
+
+
+```
+
+
+#### 2.3.3 Fusions
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+DF2_resp_fusions <- DF2_resp %>%
+  filter(cohort.x %in% c("Miao","McDermott" ))%>%
+  filter(class == "Fusion gene") %>%
+  filter(!is.na(binary_response))%>%
+  filter(!is.na(count))
+
+DF2_resp_fusions_folds <- nested_CV(DF2_resp_fusions)
+predictions_full <- lapply(DF2_resp_fusions_folds, function(y) y$count)
+binary_response <- lapply(DF2_resp_fusions_folds, function(y) y$binary_response)
+auc_fusions_rcc <- roc_with_cv(predictions_full = predictions_full, labels = binary_response)
+
+
+```
+
+
+
+#### 2.3.4 INDELS
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+DF2_resp_indel <- DF2_resp %>%
+  filter(cohort.x %in% c("Miao","McDermott" ))%>%
+  filter(class == "INDEL") %>%
+  filter(!is.na(binary_response))%>%
+  filter(!is.na(count))
+
+DF2_resp_indel_folds <- nested_CV(DF2_resp_indel)
+predictions_full <- lapply(DF2_resp_indel_folds, function(y) y$count)
+binary_response <- lapply(DF2_resp_indel_folds, function(y) y$binary_response)
+auc_indel_rcc <- roc_with_cv(predictions_full = predictions_full, labels = binary_response)
+
+
+```
+
+
+#### 2.4 SUMMARY
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+# summary of quantitative model 
+auc_rcc_mel <- bind_rows(list(SNV = auc_snvs, "Fusion gene" = auc_fusions, "INDEL" = auc_indel, "combined" = auc_combined), .id = "class")
+auc_mel <- bind_rows(list(SNV = auc_snvs_mel, "Fusion gene" = auc_fusions_mel, "INDEL" = auc_indel_mel, "combined" = auc_combined_mel), .id = "class")
+auc_rcc <- bind_rows(list(SNV = auc_snvs_rcc, "Fusion gene" = auc_fusions_rcc, "INDEL" = auc_indel_rcc, "combined" = auc_combined_rcc), .id = "class")
+auc_overall <- bind_rows(list("MEL+RCC" = auc_rcc_mel, "MEL" = auc_mel, "RCC" = auc_rcc), .id = "entity")
+
+
+
+if(export_plots){
+  nam <- paste0(path_to_plots, "/", date_today, "_ICB_quantitative_model_bar_auc_nested_cv_with_SD.pdf")
+  pdf(nam, height = 6, width = 10)
+}
+auc_overall %>%
+  mutate(entity = factor(entity, levels = c("MEL+RCC", "MEL", "RCC"))) %>%
+  ggplot(aes(class, mean_auc, fill = entity))+
+  geom_bar(stat = "identity", position = "dodge")+
+  geom_hline(yintercept = 0.5) +
+  geom_errorbar(aes(ymin=mean_auc-sd_auc , ymax=mean_auc+sd_auc ), width=.2,
+                 position=position_dodge(.9), color = "darkgrey") +
+  scale_fill_manual(values = rev(col_entity))
+
+if(export_plots){
+  dev.off()
+}
+
+
+if(export_table){
+  nam <- paste0("data_for_publication/",date_today, "_quantitative_model_mean_auc_nested_cv.txt")
+  write_delim(auc_overall, nam)
+}
+
+```
+
+#### 3 Overview response distribution 
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+dat_indel_transformed$miao$response <- dat_indel_transformed$miao$best_RECIST
+
+dat_indel_transformed2 <- lapply(dat_indel_transformed , function(x){
+  x %>% distinct(patientIdentifier, .keep_all = TRUE) %>%
+    select(patientIdentifier, response)
+})
+
+df_response <- bind_rows(dat_indel_transformed2, .id = "cohort")
+
+
+if(export_plots){
+  nam <- paste0(path_to_plots, "/", date_today, "_distribution_responses_cohorts.pdf")
+  pdf(nam, height = 6, width = 10)
+}
+df_response %>% count(cohort, response) %>%
+  mutate(response = factor(response, levels = rev(c("CR", "PR", "SD", "PD")))) %>%
+  mutate(cohort = factor(cohort, levels = c("hugo", "riaz_pre", "vanallen", "mcdermott_Atezo", "miao"))) %>%
+  ggplot(aes(cohort,n,  fill = response))+
+  scale_fill_manual(values = wes_palette("Zissou1", 4)) +
+  geom_bar(stat = "identity")
+if(export_plots){
+  dev.off()
+}
+```
