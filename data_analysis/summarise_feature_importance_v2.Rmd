@@ -1,0 +1,282 @@
+---
+title: "MILES"
+author: "Franziska Lang"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_depth: 3    
+    toc_float: true
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+knit: (
+  function(inputFile, encoding) { 
+    rmarkdown::render(
+      inputFile, 
+      encoding = encoding, 
+      output_file = file.path(dirname(inputFile), "overview_miles.html")) }
+      )
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = F)
+
+#ADJUST THIS PATH!
+#setwd("./milneo_analysis/")
+
+library(tidyverse)
+
+export_table <- F
+```
+
+```{r setup, include=FALSE}
+
+performance_with_sd <- read_delim(file = "data_for_publication/MILES_results/results_summary_v1.tsv")
+performance_wo_sd <- read_delim(file = "data_for_publication/MILES_results/results_summary_wo_SD_v1.tsv")
+
+```
+
+
+# Functions
+
+```{r}
+
+import_feature_importance <- function(path_to_files) {
+  dat <- readr::read_tsv(path_to_files, id = "path", show_col_types = FALSE,col_types = cols_only(auc = 'n'))
+  return(dat)
+}
+
+return_feature_importance <- function(path){
+  
+  features <- list.files(path)
+  feature_paths <- features %>%
+    map(., function(x) {
+      fs::dir_ls(path = paste0(path, "/", x),
+                 glob = "*tsv",
+                 recurse = TRUE)
+    })
+  names(feature_paths) <- features
+  
+  dat_imp <- feature_paths %>%
+    map(., function(x) {
+      res <- import_feature_importance(x)
+    })
+  dat_imp <- bind_rows(dat_imp, .id = "feature")
+  
+  return(dat_imp)
+}
+
+```
+
+
+
+
+## Comparison best to random model 
+
+### 1.1 MEL + RCC
+
+#### 1.1.1 SNVs
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+path_importance <- "data_for_publication/MILES_results/SNV/feature_importance_all_cohorts/"
+
+importance_snv_rcc_mel <- return_feature_importance(path_importance)
+comb_importance_snv_rcc_mel <- bind_rows(importance_snv_rcc_mel)
+summary_snv_rcc_mel <- comb_importance_snv_rcc_mel %>% 
+  group_by(feature)%>% 
+  summarise(auc = median(auc))
+
+best_auc = performance_with_sd %>% filter(mutation_type == "SNV", cohort_type == "all_cohorts") %>% pull(auc)
+
+summary_snv_rcc_mel <- summary_snv_rcc_mel %>%
+  mutate(auc_difference = best_auc - auc)
+
+
+write_tsv(comb_importance_snv_rcc_mel, paste0(path_importance, "combined_importance_results.tsv"))
+write_tsv(summary_snv_rcc_mel, paste0(path_importance, "combined_importance_results_median.tsv"))
+
+
+summary_snv_rcc_mel %>% 
+  ggplot(aes(feature, auc_difference))+
+  geom_col()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+
+```
+
+
+
+### 1.2 MEL
+
+#### 1.2.1 SNVs
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+path_importance <- "data_for_publication/MILES_results/SNV/feature_importance_mel/"
+
+
+importance_snv_mel <- return_feature_importance(path_importance)
+
+summary_snv_mel <- importance_snv_mel %>% 
+  group_by(feature)%>% 
+  summarise(auc = median(auc))
+
+best_auc = performance_with_sd %>% filter(mutation_type == "SNV", cohort_type == "mel") %>% pull(auc)
+
+summary_snv_mel <- summary_snv_mel %>%
+  mutate(auc_difference = best_auc - auc)
+
+
+write_tsv(importance_snv_mel, paste0(path_importance, "combined_importance_results.tsv"))
+write_tsv(summary_snv_mel, paste0(path_importance, "combined_importance_results_median.tsv"))
+
+
+summary_snv_mel %>% 
+  ggplot(aes(feature, auc_difference))+
+  geom_col()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+importance_snv_mel %>% 
+  ggplot(aes(feature, auc))+
+  geom_boxplot()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+```
+
+#### 1.2.2 combined
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+path_importance <- "data_for_publication/MILES_results/combined/feature_importance_mel/"
+
+importance_combined_mel <- return_feature_importance(path_importance)
+
+summary_combined_mel <- importance_combined_mel %>% 
+  group_by(feature)%>% 
+  summarise(auc = median(auc))
+
+best_auc = performance_with_sd %>% filter(mutation_type == "combined", cohort_type == "mel") %>% pull(auc)
+
+summary_combined_mel <- summary_combined_mel %>%
+  mutate(auc_difference = best_auc - auc)
+
+write_tsv(importance_combined_mel, paste0(path_importance, "combined_importance_results.tsv"))
+write_tsv(summary_combined_mel, paste0(path_importance, "combined_importance_results_median.tsv"))
+
+
+summary_combined_mel %>% 
+  ggplot(aes(feature, auc_difference))+
+  geom_col()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+importance_combined_mel %>% 
+  ggplot(aes(feature, auc))+
+  geom_boxplot()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+
+
+```
+
+
+
+
+### 1.3 RCC
+
+Was only performed on dataset without SD patients. 
+
+
+#### 1.3.2 combined
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+path_importance<- "data_for_publication/MILES_results/combined/feature_importance_rcc_wo_SD/"
+
+importance_combined_rcc <- return_feature_importance(path_importance)
+
+summary_combined_rcc  <- importance_combined_rcc %>% 
+  group_by(feature)%>% 
+  summarise(auc = median(auc))
+
+
+best_auc = performance_wo_sd %>% filter(mutation_type == "combined", cohort_type == "rcc_wo_SD") %>% pull(auc)
+
+summary_combined_rcc <- summary_combined_rcc %>%
+  mutate(auc_difference = best_auc - auc)
+
+
+write_tsv(importance_combined_rcc, paste0(path_importance, "combined_importance_results.tsv"))
+write_tsv(summary_combined_rcc, paste0(path_importance, "combined_importance_results_median.tsv"))
+
+summary_combined_rcc %>% 
+  ggplot(aes(feature, auc_difference))+
+  geom_col()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+
+```
+
+
+#### 1.3.3 Fusion genes
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+path_importance<- "data_for_publication/MILES_results/fusion_gene/feature_importance_rcc_wo_SD/"
+
+importance_fusions_rcc <- return_feature_importance(path_importance)
+
+summary_fusions_rcc  <- importance_fusions_rcc %>% 
+  group_by(feature)%>% 
+  summarise(auc = median(auc))
+
+
+best_auc = performance_wo_sd %>% filter(mutation_type == "fusion_gene", cohort_type == "rcc_wo_SD") %>% pull(auc)
+
+summary_fusions_rcc <- summary_fusions_rcc %>%
+  mutate(auc_difference = best_auc - auc)
+
+write_tsv(importance_fusions_rcc, paste0(path_importance, "combined_importance_results.tsv"))
+write_tsv(summary_fusions_rcc, paste0(path_importance, "combined_importance_results_median.tsv"))
+
+
+summary_fusions_rcc %>% 
+  ggplot(aes(feature, auc_difference))+
+  geom_col()+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+
+```
+
+
+
+
+
+
+## Summary
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+importance_mel_rcc <- bind_rows(list(SNV = importance_snv_rcc_mel, combined = importance_combined_rcc_mel,
+                                     INDEL = importance_indel_rcc_mel, "Fusion gene" = importance_fusion_rcc_mel), .id = "class")
+
+importance_mel <- bind_rows(list(SNV = importance_snv_mel, combined = importance_combined_mel,
+                                     INDEL = importance_indel_mel), .id = "class")
+importance_rcc <- bind_rows(list(SNV = importance_snv_rcc, combined = importance_combined_rcc,
+                                     "Fusion gene" = importance_fusions_rcc), .id = "class")
+
+importance_all <- bind_rows(list("MEL+RCC" = importance_mel_rcc, "MEL" = importance_mel,
+                                     "RCC" = importance_rcc), .id = "entity")
+
+
+if(export_table){
+  write_delim(importance_all, paste0( "data_for_publication/MILES_results/feature_importance.tsv"), delim = "\t")
+}
+
+
+```
