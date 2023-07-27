@@ -1,0 +1,93 @@
+---
+title: "MILES"
+author: "Franziska Lang"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_depth: 3    
+    toc_float: true
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+knit: (
+  function(inputFile, encoding) { 
+    rmarkdown::render(
+      inputFile, 
+      encoding = encoding, 
+      output_file = file.path(dirname(inputFile), "overview_miles.html")) }
+      )
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = F)
+
+
+library(tidyverse)
+
+#ADJUST THIS PATH!
+#setwd("./milneo_analysis/")
+
+
+source("data_analysis/functions_evaluation_models.R")
+
+
+path_to_results <- "data_for_publication/MILES_results/"
+
+```
+
+
+## AIM
+
+Summary of MILES performance in context of the mutation type and mutation entity. 
+Import Tuning results and calculate median ROC-AUC over 10x10 CV to determine the best hyper-parameter set that will represent performance of MILES on the respective data subset. 
+
+
+```{r}
+
+mutation_type <- c("SNV", "fusion_gene", "INDEL", "combined")
+cohort_type <- c("all_cohorts", "mel", "rcc")
+sd_type <- c("", "_without_SD")
+
+dat_grid <- expand_grid(mutation_type, cohort_type, sd_type)
+dat_grid <- dat_grid %>% 
+  mutate(sd_type = ifelse(cohort_type == "rcc" & sd_type == "_without_SD", "_wo_SD", sd_type)) %>% 
+  mutate(cohort_type = paste0(cohort_type, sd_type))
+
+dat_grid <- dat_grid %>% 
+  mutate(
+  path = paste(path_to_results, mutation_type, cohort_type, sep = "/") 
+) %>% 
+  mutate(path_exists = dir.exists(path))
+
+```
+
+```{r}
+
+# with SD patients 
+
+dat_grid_withSD <- dat_grid %>% 
+  filter(sd_type == "")
+
+res <- dat_grid_withSD %>% 
+  summarise_results()
+
+write_tsv(res, "data_for_publication/MILES_results/results_summary_v1.tsv")
+
+```
+
+
+
+```{r}
+
+# without SD patients 
+
+dat_grid_woSD <- dat_grid %>% 
+  filter(sd_type != "")
+
+res <- dat_grid_woSD %>% 
+  summarise_results()
+
+write_tsv(res, "data_for_publication/MILES_results//results_summary_wo_SD_v1.tsv")
+```
