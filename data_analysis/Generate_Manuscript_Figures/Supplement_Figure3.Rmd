@@ -57,19 +57,6 @@ auc_overall_path <- read_delim("data_for_publication/MILES_results/results_summa
 ```
 
 
-```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
-
-ps3a <- auc_overall_path %>%
-  mutate(mutation_type = ifelse(mutation_type == "fusion_gene" , "Fusion gene" , mutation_type))%>% 
-  ggplot(aes(sigma2, c, color = mutation_type, shape = cohort_type))+
-  scale_color_manual(values = col_mutation)+
-  scale_x_continuous(trans = "log10")+
-  geom_point( size = 5)
-
-
-```
-
-
 ## Comparison best to random model 
 
 Neoantigen candidates were randomized across patients and 10x10 CV was repeated with best hyperparameter setting for the respective setting. Here, performance of the original approach is compared to the random model . 
@@ -182,11 +169,10 @@ p6 <- compare_random_best(path_random, path_best, class = "MEL : All mutation ty
 
 # show random models for MILES with median AUROC > 0.6
 m <- ggarrange(
-  ps3a,
   p1,
   p6,
   p5,
-  labels = c("A", "B", "C", "D"),
+  labels = c("A", "B", "C"),
   ncol = 2,
   nrow = 2
 )  
