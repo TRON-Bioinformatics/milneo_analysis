@@ -1,0 +1,191 @@
+---
+title: "Quantitative analysis ICB"
+author: "Franziska Lang"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_depth: 3    
+    toc_float: true
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+knit: (
+  function(inputFile, encoding) { 
+    rmarkdown::render(
+      inputFile, 
+      encoding = encoding, 
+      output_file = file.path(dirname(inputFile), "icb_data_with_SD.html")) }
+      )
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = F)
+
+
+#ADJUST THIS PATH!
+#setwd("./milneo_analysis/")
+
+library(tidyverse)
+
+export_table <- FALSE
+
+```
+
+
+
+## AIM
+
+Generate Suppl. Table 2: 
+
+- sheet 1 : MILES performance
+- sheet 2 : MILES performance without SD patients
+- sheet 3 : Feature importance
+- sheet 4 : Feature importance without SD patients
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+# MILES results
+
+tab_res <- read_tsv("data_for_publication/MILES_results/results_summary_v1.tsv")
+tab_res_woSD <- read_tsv("data_for_publication/MILES_results/results_summary_wo_SD_v1.tsv")
+
+mut_vec <- c(combined = "combined", fusion_gene = "Fusion gene", INDEL =  "INDEL", SNV = "SNV")
+entity_vec <- c(mel = "MEL", all_cohorts = "MEL+RCC" , rcc = "RCC")
+entity_vec_woSD <- c(mel_without_SD = "MEL", all_cohorts_without_SD = "MEL+RCC" , rcc_wo_SD = "RCC")
+
+tab_res_pretty <- tab_res %>% 
+  mutate(cohort_type = entity_vec[cohort_type]) %>% 
+  mutate(mutation_type = mut_vec[mutation_type]) %>% 
+  rename(entity = cohort_type)
+
+tab_res_woSD_pretty <- tab_res_woSD %>% 
+  mutate(cohort_type = entity_vec_woSD[cohort_type]) %>% 
+  mutate(mutation_type = mut_vec[mutation_type]) %>% 
+  rename(entity = cohort_type)
+
+```
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+# neoantigen candidate load results
+
+tab_res_load <- read_tsv("data_for_publication/canidate_load_results/neoantigen_candidate_load_median_AUROC_with_SD.tsv")
+tab_res_woSD_load <- read_tsv("data_for_publication/canidate_load_results/neoantigen_candidate_load_median_AUROC_without_SD.tsv")
+
+```
+
+
+```{r}
+
+# sheet 1 
+tab_res_pretty2 <- tab_res_pretty %>% 
+  left_join(tab_res_load, by = c("mutation_type", "entity")) %>% 
+  select(mutation_type, entity, sigma2, c, auc, auc_iqr, median_AUROC, iqr_AUROC) %>%
+  rename("MILES Median AUROC" = auc,
+         "MILES IQR AUROC" = auc_iqr,
+         "Neoantigen candidate load Median AUROC" = median_AUROC,
+         "Neoantigen candidate load IQR AUROC" = iqr_AUROC,
+         )
+
+# sheet 2
+tab_res_woSD_pretty2 <- tab_res_woSD_pretty %>% 
+  left_join(tab_res_woSD_load, by = c("mutation_type", "entity")) %>% 
+  select(mutation_type, entity, sigma2, c, auc, auc_iqr, median_AUROC, iqr_AUROC) %>%
+  rename("MILES Median AUROC" = auc,
+         "MILES IQR AUROC" = auc_iqr,
+         "Neoantigen candidate load Median AUROC" = median_AUROC,
+         "Neoantigen candidate load IQR AUROC" = iqr_AUROC,
+         )
+
+
+```
+
+
+```{r}
+
+# feature importance analysis 
+
+tab_res_imp <- tab_res %>%
+  filter(auc > 0.6) %>%
+  select(mutation_type, cohort_type) %>%
+  mutate(
+    path_feature_importance = paste0(
+      "data_for_publication/MILES_results/",
+      mutation_type,
+      "/feature_importance_",
+      cohort_type,
+      "/combined_importance_results_median.tsv"
+    )
+  )
+
+tab_res_imp_woSD <- tab_res_woSD %>%
+  filter( cohort_type == "rcc_wo_SD") %>%
+  filter(auc > 0.6) %>%
+  select(mutation_type, cohort_type) %>%
+  mutate(
+    path_feature_importance = paste0(
+      "data_for_publication/MILES_results/",
+      mutation_type,
+      "/feature_importance_",
+      cohort_type,
+      "/combined_importance_results_median.tsv"
+    )
+  )
+
+
+```
+
+
+```{r}
+
+# sheet 3
+
+dat_importance <- read_tsv(tab_res_imp$path_feature_importance, id = "path" )
+
+dat_importance2 <- dat_importance %>% 
+  left_join(tab_res_imp, by = c("path" = "path_feature_importance")) %>% 
+  select(-path) %>%
+  mutate(cohort_type = entity_vec[cohort_type]) %>% 
+  mutate(mutation_type = mut_vec[mutation_type]) %>%
+  mutate(auc_difference = round(auc_difference, digits = 3)) %>% 
+  rename(entity = cohort_type) %>% 
+  rename("Median AUROC after randomization" = auc) %>% 
+  rename("Delta median AUROC" = auc_difference)
+
+```
+
+```{r}
+
+# sheet 4
+
+dat_importance_woSD <- read_tsv(tab_res_imp_woSD$path_feature_importance, id = "path" )
+
+dat_importance2_woSD <- dat_importance_woSD %>% 
+  left_join(tab_res_imp_woSD, by = c("path" = "path_feature_importance")) %>% 
+  select(-path) %>%
+  mutate(cohort_type = entity_vec_woSD[cohort_type]) %>% 
+  mutate(mutation_type = mut_vec[mutation_type]) %>%
+  mutate(auc_difference = round(auc_difference, digits = 3)) %>% 
+  rename(entity = cohort_type) %>% 
+  rename("Median AUROC after randomization" = auc) %>% 
+  rename("Delta median AUROC" = auc_difference)
+
+```
+
+
+```{r}
+
+list_of_datasets <-
+  list(
+    "MILES performance" = tab_res_pretty2,
+    "MILES performance without SD" = tab_res_woSD_pretty2,
+    "Feature importance" = dat_importance2,
+    "Feature importance wo SD" = dat_importance2_woSD
+  )
+
+openxlsx::write.xlsx(list_of_datasets, file = "data_for_publication/MILES_results/Suppl_Table2.xlsx")
+
+```
+

@@ -23,40 +23,26 @@ knit: (
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = F)
 
-date_today <- gsub("-", "", Sys.Date())
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = F)
+
+
 library(tidyverse)
 library(ggpubr)
 library(gridExtra)
 library(gtools)
+library(rstatix)
 
-# ADJUST THIS PATH 
-setwd("./miles_publication/")
-theme_adju <- function(){
-  theme_bw()+ 
-  theme(axis.text=element_text(colour="black"))+ 
-    theme(panel.grid.major = element_blank(), 
-          panel.grid.minor = element_blank(),
-                  legend.position = "top",
-        legend.justification="right",
-      legend.margin=margin(0,0,0,0),
-      legend.box.margin=margin(-10,-10,-10,-10),
-      legend.title = element_blank(),
-      legend.text = element_text(size = 6),
-      title = element_text(size = 7),
-      axis.text = element_text(size = 6),
-          axis.title = element_text(size = 7))
-}
+#ADJUST THIS PATH!
+#setwd("./milneo_analysis/")
 
-theme_set(theme_adju())
 
 source("data_analysis/functions_evaluation_models.R")
-theme_set(theme_bw())
+source("data_analysis/Generate_Manuscript_Figures/config_figures.R")
+
 
 path_plots <- "plots/"
 
 export_plots <- F
-
-export_table <- F
 ```
 
 This code generates Supplemental Figure 3. 
@@ -64,20 +50,9 @@ This code generates Supplemental Figure 3.
 ## Hyperparameter of best models 
 
 
-```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+```{r}
 
-auc_overall_path <- read_delim("data_for_publication/MILES_results/MILES_best_models_with_SD.tsv")
-
-col_mut <- c("SNV" = "#88CCEE","INDEL" = "#CC6677", "Fusion gene" = "#DDCC77","combined" = "#117733")
-
-ps3a <- auc_overall_path %>%
-  ggplot(aes(sigma2, c, color = class, shape = entity))+
-  scale_color_manual(values = col_mut)+
-  scale_x_continuous(trans = "log10")+
-  geom_point( size = 5)
-
-
-
+auc_overall_path <- read_delim("data_for_publication/MILES_results/results_summary_v1.tsv")
 
 ```
 
@@ -87,60 +62,71 @@ ps3a <- auc_overall_path %>%
 Neoantigen candidates were randomized across patients and 10x10 CV was repeated with best hyperparameter setting for the respective setting. Here, performance of the original approach is compared to the random model . 
 
 
+
+```{r}
+
+
+auc_overall_path <- auc_overall_path %>% 
+  mutate(
+    path_result = paste0(
+      "data_for_publication/MILES_results/",
+      "/",
+      mutation_type,
+      "/",
+      cohort_type,
+      "/",
+      "miles_",
+      as.integer(sigma2),
+      "_",
+      sprintf(c, fmt = '%#.1f'),
+      ".tsv"
+    )
+  ) %>% 
+  mutate(
+    path_random = paste0(
+      "data_for_publication/MILES_results/",
+      "/",
+      mutation_type,
+      "/random_",
+      cohort_type,
+      "/",
+      "randomized_miles_",
+      as.integer(sigma2),
+      "_",
+      c,
+      ".tsv"
+    )
+  )
+  
+
+```
+
+
+```{r}
+
+auc_overall_path <- auc_overall_path %>%
+  filter(file.exists(path_random))
+
+
+```
+
+
 ### 1.1 MEL + RCC
 
 #### 1.1.1 SNVs
 
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
 
-path_random = "data_for_publication/MILES_results/SNV/randomized_data/miles_10000_0.1.tsv"
-path_best = "data_for_publication/MILES_results/SNV/miles_all/miles_10000_0.1.tsv"
+path_random = auc_overall_path %>% 
+  filter(cohort_type == "all_cohorts" & mutation_type == "SNV") %>% pull(path_random)
+path_best = auc_overall_path %>% 
+  filter(cohort_type == "all_cohorts" & mutation_type == "SNV") %>% pull(path_result)
 
-p1 <- compare_random_best(path_random, path_best, class = "SNV")
-
-
-```
-
-#### 1.1.2 fusion genes
-
-
-```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
-
-path_random = "data_for_publication/MILES_results/fusion_gene/randomized_data/miles_1000_0.4.tsv"
-path_best = "data_for_publication/MILES_results/fusion_gene/miles_all/miles_1000_0.4.tsv"
-p2 <- compare_random_best(path_random, path_best, class = "Fusion gene")
-
+p1 <- compare_random_best(path_random, path_best, class = "MEL + RCC : SNV")
 
 ```
 
 
-#### 1.1.3 combined
-
-
-```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
-
-
-path_random = "data_for_publication/MILES_results/combined/randomized_data/miles_5000_0.1.tsv"
-path_best = "data_for_publication/MILES_results/combined/miles_all/miles_5000_0.1.tsv"
-
-p3 <- compare_random_best(path_random, path_best, class = "Combined")
-
-
-```
-
-
-
-### 1.1.4 INDEL
-
-```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
-
-path_random = "data_for_publication/MILES_results/INDEL/randomized_data/miles_500000_0.9.tsv"
-path_best = "data_for_publication/MILES_results/INDEL/miles_all/miles_500000_0.9.tsv"
-
-
-p4 <- compare_random_best(path_random, path_best, class = "INDEL")
-
-```
 
 
 ### 1.2 MEL
@@ -149,8 +135,10 @@ p4 <- compare_random_best(path_random, path_best, class = "INDEL")
 
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
 
-path_random = "data_for_publication/MILES_results/SNV/randomized_data_mel/miles_10000000_0.1.tsv"
-path_best = "data_for_publication/MILES_results/SNV/miles_mel/miles_10000000_0.1.tsv"
+path_random = auc_overall_path %>% 
+  filter(cohort_type == "mel" & mutation_type == "SNV") %>% pull(path_random)
+path_best = auc_overall_path %>% 
+  filter(cohort_type == "mel" & mutation_type == "SNV") %>% pull(path_result)
 
 p5 <- compare_random_best(path_random, path_best, class = "MEL : SNV")
 
@@ -162,23 +150,13 @@ p5 <- compare_random_best(path_random, path_best, class = "MEL : SNV")
 
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
 
-path_random = "data_for_publication/MILES_results/combined/randomized_data_mel/miles_500000_0.1.tsv"
-path_best = "data_for_publication/MILES_results/combined/miles_mel/miles_500000_0.1.tsv"
-
-p6 <- compare_random_best(path_random, path_best, class = "MEL : Combined")
-
-```
+path_random = auc_overall_path %>% 
+  filter(cohort_type == "mel" & mutation_type == "combined") %>% pull(path_random)
+path_best = auc_overall_path %>% 
+  filter(cohort_type == "mel" & mutation_type == "combined") %>% pull(path_result)
 
 
-
-### 1.2.3 INDEL
-
-```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
-
-path_random = "data_for_publication/MILES_results/INDEL/randomized_data_mel/miles_500000_0.6.tsv"
-path_best = "data_for_publication/MILES_results/INDEL/miles_mel/miles_500000_0.6.tsv"
-
-p7 <- compare_random_best(path_random, path_best, class = "MEL : INDEL")
+p6 <- compare_random_best(path_random, path_best, class = "MEL : All mutation types")
 
 ```
 
@@ -189,16 +167,21 @@ p7 <- compare_random_best(path_random, path_best, class = "MEL : INDEL")
 
 ```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
 
+# show random models for MILES with median AUROC > 0.6
+m <- ggarrange(
+  p1,
+  p6,
+  p5,
+  labels = c("A", "B", "C"),
+  ncol = 2,
+  nrow = 2
+)  
+
 
 if(export_plots){
-   f <- paste0(path_plots, date_today, "_Supplemental_Figure3.pdf")
-  pdf(f)
+   f <- paste0(path_plots, "Supplemental_Figure3.pdf")
+  ggsave(f, m, units = "mm", width = 208, height = 150)
 }
-ggarrange(ps3a, p1, p2, p3, p4, p5, p6, p7 ,
-          labels = c("A", "B", "C", "D", "E", "F", "G","H"),
-          ncol = 2, nrow = 4)  
-if(export_plots){
-   dev.off()
-}
+
 
 ```

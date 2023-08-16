@@ -1,0 +1,191 @@
+---
+title: "MILES"
+author: "Franziska Lang"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_depth: 3    
+    toc_float: true
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+knit: (
+  function(inputFile, encoding) { 
+    rmarkdown::render(
+      inputFile, 
+      encoding = encoding, 
+      output_file = file.path(dirname(inputFile), "miles_random_models.html")) }
+      )
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = F)
+
+#ADJUST THIS PATH!
+#setwd("./milneo_analysis/")
+
+
+library(tidyverse)
+library(ggpubr)
+library(gridExtra)
+source("data_analysis/Generate_Manuscript_Figures/config_figures.R")
+source("data_analysis/functions_evaluation_models.R")
+
+
+path_to_plots <- "plots/"
+export_plots <- FALSE
+```
+
+This code generates Supplemental Figure 5. 
+
+
+## Results from feature importance analysis 
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+path_to_results <- "data_for_publication/MILES_results/"
+
+# do not show INDEL 
+mutation_type <- c("SNV" ,  "fusion_gene", "combined")
+cohort_type <- c("mel" , "all_cohorts", "rcc_wo_SD")
+
+tab <- expand_grid(mutation_type, cohort_type)
+
+# select only combinations  which we use in the feature importance analysis 
+# add file path 
+tab <- tab %>% 
+  filter(!(mutation_type == "SNV" & cohort_type == "rcc_wo_SD")) %>% 
+  filter(!(mutation_type == "combined" & cohort_type == "all_cohorts")) %>% 
+  filter(!(mutation_type == "fusion_gene" & !cohort_type == "rcc_wo_SD")) %>% 
+  mutate(path = paste0(path_to_results,"/", mutation_type,"/", "feature_importance_", cohort_type, "/", "combined_importance_results_median.tsv")) %>% 
+  mutate(file_exists = file.exists(path)) 
+
+tab_final <- tab %>% 
+  filter(file_exists)
+
+
+```
+
+```{r}
+
+dat_importance <- readr::read_tsv(tab_final$path, id = "path")
+
+dat_importance <- dat_importance %>%
+  mutate(suffix = gsub("data_for_publication/MILES_results//", "", path)) %>%
+  mutate(mutation_type = sub("\\/.*", "", suffix)) %>%
+  rowwise() %>%
+  mutate(cohort_type = gsub(paste0(mutation_type, "/feature_importance_"), "", suffix)) %>%
+  mutate(cohort_type = gsub("/combined_importance_results_median.tsv",
+                            "",
+                            cohort_type)) %>% 
+  mutate(mutation_type = case_when(
+    mutation_type == "combined" ~ "all mutation types",
+    mutation_type == "fusion_gene" ~ "Fusion gene",
+    TRUE ~ mutation_type
+  )) %>%
+  mutate(
+    cohort_type = case_when(
+    cohort_type == "rcc_wo_SD" ~ "RCC",
+    cohort_type == "all_cohorts" ~ "MEL+RCC",
+    cohort_type == "mel" ~ "MEL",
+    TRUE ~ mutation_type
+  )
+  )
+  
+
+```
+
+
+```{r}
+
+# suppl. fig 5 
+
+fig5_a <- dat_importance %>% 
+  filter(cohort_type != "RCC") %>% 
+  ggplot(aes(feature, auc_difference, fill = cohort_type))+
+  geom_col(position = position_dodge() ) +
+  facet_wrap(.~mutation_type, nrow = 3)+
+  geom_hline(yintercept = 0.05)+
+  scale_fill_manual(values = col_entity)+
+  ylab("Delta AUC")+
+  xlab(NULL)+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
+
+fig5_b <- dat_importance %>% 
+  filter(cohort_type == "RCC") %>% 
+  ggplot(aes(feature, auc_difference, fill = cohort_type))+
+  geom_col(position = position_dodge() ) +
+  facet_wrap(.~mutation_type, nrow = 3)+
+  geom_hline(yintercept = 0.05)+
+  scale_fill_manual(values = col_entity)+
+  ylab("Delta AUC")+
+  xlab(NULL)+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
+
+```
+
+
+```{r}
+
+# Full results as boxplots 
+tab_final2 <- tab_final %>% 
+  mutate(path_to_full = paste0(path_to_results,"/", mutation_type,"/", "feature_importance_", cohort_type, "/", "combined_importance_results.tsv"))
+
+
+dat_importance_full <- readr::read_tsv(tab_final2$path_to_full, id = "path_summary")
+
+
+dat_importance_full <- dat_importance_full %>% 
+  mutate(suffix = gsub("data_for_publication/MILES_results//", "", path_summary)) %>%
+  mutate(mutation_type = sub("\\/.*", "", suffix)) %>%
+  rowwise() %>%
+  mutate(cohort_type = gsub(paste0(mutation_type, "/feature_importance_"), "", suffix)) %>%
+  mutate(cohort_type = gsub("/combined_importance_results.tsv",
+                            "",
+                            cohort_type)) %>% 
+  ungroup() %>% 
+  mutate(mutation_type = case_when(
+    mutation_type == "combined" ~ "all mutation types",
+    mutation_type == "fusion_gene" ~ "Fusion gene",
+    TRUE ~ mutation_type
+  )) %>%
+  mutate(
+    cohort_type = case_when(
+    cohort_type == "rcc_wo_SD" ~ "RCC",
+    cohort_type == "all_cohorts" ~ "MEL+RCC",
+    cohort_type == "mel" ~ "MEL",
+    TRUE ~ mutation_type
+  )
+  )
+dat_importance_full %>% 
+  ggplot(aes(feature, auc, fill = cohort_type))+
+  geom_boxplot( ) +
+  facet_wrap(.~mutation_type, nrow = 3)+
+  geom_hline(yintercept = 0.05)+
+  scale_fill_manual(values = col_entity)+
+  ylab("AUC")+
+  xlab(NULL)+
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
+```
+
+
+
+
+## Summary
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+fig5 <- ggarrange(fig5_a, fig5_b, nrow = 2, labels = LETTERS)
+
+
+if(export_plots){
+  
+   f <- paste0(path_to_plots, "Supplemental_Figure5.pdf")
+   ggsave(f, fig5, units = "mm", width = 208, height = 190)
+}
+ 
+
+```

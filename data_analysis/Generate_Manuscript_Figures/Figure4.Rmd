@@ -1,0 +1,311 @@
+---
+title: "MILES"
+author: "Franziska Lang"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_depth: 3    
+    toc_float: true
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+knit: (
+  function(inputFile, encoding) { 
+    rmarkdown::render(
+      inputFile, 
+      encoding = encoding, 
+      output_file = file.path(dirname(inputFile), "overview_miles.html")) }
+      )
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = F)
+
+
+library(tidyverse)
+library(ggpubr)
+library(gridExtra)
+library(gtools)
+library(rstatix)
+
+#ADJUST THIS PATH!
+#setwd("./milneo_analysis/")
+
+
+source("data_analysis/functions_evaluation_models.R")
+source("data_analysis/Generate_Manuscript_Figures/config_figures.R")
+
+path_plots <- "plots/"
+
+export_plots <- F
+
+```
+
+
+## AIM
+
+This code generates Figure 4 C-H and Supplemental Figure 5.  
+
+Summary of MILES performance in context of the mutation type and mutation entity. 
+Import Tuning results and calculate median ROC-AUC over 10x10 CV to determine the best hyper-parameter set that will represent performance of MILES on the respective data subset. 
+
+## 1 PERFORMANCE WITH SD 
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+auc_overall_path <- read_delim("data_for_publication/MILES_results/results_summary_v1.tsv")
+
+auc_overall_path <- auc_overall_path %>%
+  mutate(
+    path_result = paste0(
+      "data_for_publication/MILES_results/",
+      "/",
+      mutation_type,
+      "/",
+      cohort_type,
+      "/",
+      "miles_",
+      as.integer(sigma2),
+      "_",
+      sprintf(c, fmt = '%#.1f'),
+      ".tsv"
+    )
+  )
+
+paht_entity = c( "all_cohorts" = "MEL+RCC" , "mel" = "MEL"  ,  "rcc" ="RCC" )
+
+# get full results of best MILES models
+dat_best_models <- auc_overall_path$path_result %>%
+  map(., read_delim, delim = "\t")
+names(dat_best_models) <-
+  paste0(
+    auc_overall_path$cohort_type,
+    "-",
+    auc_overall_path$mutation_type,
+    "-" ,
+    auc_overall_path$sigma2,
+    "-",
+    auc_overall_path$c
+  )
+
+dat_best_models <- bind_rows(dat_best_models, .id = "type")
+
+dat_best_with_sd  <- dat_best_models %>%
+  separate(type, sep= "-", into = c("entity", "mutation_type",  "sigma2", "c")) %>%
+  mutate(mutation_type = ifelse(mutation_type == "fusion_gene" , "Fusion gene" , mutation_type))%>%
+  rename(AUROC = auc) %>% 
+  mutate(entity = paht_entity[entity])
+
+```
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+
+# get quantitative results
+dat_quant_with_sd <- read_delim("data_for_publication/canidate_load_results/neoantigen_candidate_load_AUROC_with_SD.tsv")
+
+
+```
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+# combine quantitative and qualitative results
+dat_with_sd <- bind_rows(list("MILES" = dat_best_with_sd, "Neoantigen candidate load" = dat_quant_with_sd), .id = "type")
+
+```
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+
+p4c <- plot_miles_load(dat_with_sd, entity_ = "MEL", main = "MEL", col_method = col_method)
+p4d <- plot_miles_load(dat_with_sd, entity_ = "RCC", main = "RCC", col_method = col_method)
+p4e <-plot_miles_load(dat_with_sd, entity_ = "MEL+RCC", main = "MEL+RCC", col_method = col_method)
+
+
+
+```
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+# combine quantitative and qualitative results
+
+  
+median_with_SD <- auc_overall_path %>%
+  mutate(cohort_type = paht_entity[cohort_type]) %>%
+  mutate(cohort_type = factor(cohort_type, levels = c("MEL+RCC", "MEL", "RCC"))) %>%
+  mutate(mutation_type = ifelse(mutation_type == "fusion_gene" , "Fusion gene" , mutation_type)) %>%
+  mutate(mutation_type = ifelse(mutation_type == "fusion_gene" , "Fusion gene" , mutation_type)) %>%
+  mutate(mutation_type =ifelse(mutation_type == "combined", "all", mutation_type)) %>%
+  mutate(mutation_type = factor(
+    mutation_type,
+    levels = c("all", "SNV", "INDEL", "Fusion gene")
+  )) %>%
+  ggplot(aes(mutation_type, auc)) +
+  geom_col(fill = col_method[1], color = "black") +
+  facet_wrap( ~ cohort_type) +
+  geom_hline(yintercept = 0.5) +
+  ylim(c(0, 1)) +
+  geom_errorbar(
+    aes(ymin = auc - auc_iqr, ymax = auc + auc_iqr),
+    width = .2,
+    position = position_dodge(.9)
+  ) +
+  xlab(NULL) +
+  ylab("Median AUROC") +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45,  hjust = 1),
+    panel.spacing = unit(0, "lines"),
+    strip.text.x = element_text(size = 6)
+  )
+
+
+p_with_sd <- ggarrange(median_with_SD, p4e, p4c,  ncol = 3, labels = c("C", "D", "E"), align = "h")
+```
+
+
+
+
+## 3 PERFORMANCE WITHOUT SD 
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+auc_overall_path_wo_SD <- read_delim("data_for_publication/MILES_results/results_summary_wo_SD_v1.tsv")
+
+
+auc_overall_path_wo_SD <- auc_overall_path_wo_SD %>%
+  mutate(
+    path_result = paste0(
+      "data_for_publication/MILES_results/",
+      "/",
+      mutation_type,
+      "/",
+      cohort_type,
+      "/",
+      "miles_",
+      as.integer(sigma2),
+      "_",
+      sprintf(c, fmt = '%#.1f'),
+      ".tsv"
+    )
+  )
+
+# get full results of best MILES models
+dat_best_models_wo_SD <- auc_overall_path_wo_SD$path_result %>%
+  map(., read_delim, delim = "\t")
+
+
+names(dat_best_models_wo_SD) <-
+  paste0(
+    auc_overall_path$cohort_type,
+    "-",
+    auc_overall_path$mutation_type,
+    "-" ,
+    auc_overall_path$sigma2,
+    "-",
+    auc_overall_path$c
+  )
+
+dat_best_models_wo_SD <- bind_rows(dat_best_models_wo_SD, .id = "type")
+
+dat_best_models_wo_SD  <- dat_best_models_wo_SD %>%
+  separate(type, sep= "-", into = c("entity", "mutation_type",  "sigma2", "c")) %>%
+  mutate(mutation_type = ifelse(mutation_type == "fusion_gene" , "Fusion gene" , mutation_type))%>%
+  rename(AUROC = auc) %>% 
+  mutate(entity = paht_entity[entity])
+
+```
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+
+# get quantitative results
+dat_quant_without_sd <- read_delim("data_for_publication/canidate_load_results/neoantigen_candidate_load_AUROC_without_SD.tsv")
+
+
+```
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+# combine quantitative and qualitative results
+dat_without_sd <-
+  bind_rows(
+    list("MILES" = dat_best_models_wo_SD, "Neoantigen candidate load" = dat_quant_without_sd),
+    .id = "type"
+  )
+
+```
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+
+p4g <- plot_miles_load(dat_without_sd, entity_ = "MEL", main = "MEL", col_method = col_method)
+p4h <- plot_miles_load(dat_without_sd, entity_ = "RCC", main = "RCC", col_method = col_method)
+p4i <-plot_miles_load(dat_without_sd, entity_ = "MEL+RCC", main = "MEL+RCC", col_method = col_method)
+
+p_without_sd <- ggarrange(p4i,p4g, p4h,  ncol = 3,labels = c("F", "G", "H"))
+
+```
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+# combine quantitative and qualitative results
+
+paht_entity_ = c( "all_cohorts_without_SD" = "MEL+RCC" , "mel_without_SD" = "MEL"  ,  "rcc_wo_SD" ="RCC" )  
+
+median_without_SD <- auc_overall_path_wo_SD %>%
+  mutate(cohort_type = paht_entity_[cohort_type]) %>%
+  mutate(cohort_type = factor(cohort_type, levels = c("MEL+RCC", "MEL", "RCC"))) %>%
+  mutate(mutation_type = ifelse(mutation_type == "fusion_gene" , "Fusion gene" , mutation_type)) %>%
+  mutate(mutation_type =ifelse(mutation_type == "combined", "all", mutation_type)) %>%
+  mutate(mutation_type = factor(
+    mutation_type,
+    levels = c("all", "SNV", "INDEL", "Fusion gene")
+  )) %>%
+  ggplot(aes(mutation_type, auc)) +
+  geom_col(fill = col_method[1], color = "black") +
+  facet_wrap( ~ cohort_type) +
+  geom_hline(yintercept = 0.5) +
+  ylim(c(0, 1.2)) +
+  geom_errorbar(
+    aes(ymin = auc - auc_iqr, ymax = auc + auc_iqr),
+    width = .2,
+    position = position_dodge(.9)
+  ) +
+  xlab(NULL) +
+  ylab("Median AUROC") +
+  theme(
+    legend.position = "none",
+    axis.text.x = element_text(angle = 45,  hjust = 1),
+    panel.spacing = unit(0, "lines"),
+    strip.text.x = element_text(size = 6)
+  )
+
+
+p_without_sd <- ggarrange(median_without_SD, p4h,  ncol = 3, labels = c("F", "G"), align = "h")
+
+```
+
+
+
+```{r , echo=FALSE, message=FALSE, warning = FALSE, results=FALSE}
+
+
+ m <- ggarrange(p_with_sd, p_without_sd, nrow = 2 )
+
+if(export_plots){
+  nam <- paste0(path_plots, "/", "figure4.pdf")
+ 
+  ggsave(nam, m, units = "mm", width = 208, height = 150)
+
+}
+
+
+```
+
+
